@@ -233,7 +233,12 @@ def main():
             # TODO: reduce scope to modified test cases instead of entire modules
             changed_files = info.get_changed_files()
             for file in changed_files:
-                if file.startswith("tests/integration/test") and file.endswith(".py") and not file.endswith("__init__.py"):
+                if (
+                    file.startswith("tests/integration/test")
+                    and file.endswith(".py")
+                    and not file.endswith("__init__.py")
+                    and Path(file).is_file()
+                ):
                     changed_test_modules.append(file.removeprefix("tests/integration/"))
 
     if is_bugfix_validation:
