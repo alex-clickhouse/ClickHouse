@@ -233,7 +233,11 @@ def main():
             # TODO: reduce scope to modified test cases instead of entire modules
             changed_files = info.get_changed_files()
             for file in changed_files:
-                if file.startswith("tests/integration/test") and file.endswith(".py") and not file.endswith("__init__.py"):
+                if (
+                    file.startswith("tests/integration/test")
+                    and file.endswith(".py")
+                    and not file.endswith("__init__.py")
+                ):
                     changed_test_modules.append(file.removeprefix("tests/integration/"))
 
     if is_bugfix_validation:
@@ -332,7 +336,7 @@ def main():
     if parallel_test_modules:
         for attempt in range(module_repeat_cnt):
             test_result_parallel = Result.from_pytest_run(
-                command=f"{' '.join(reversed(parallel_test_modules))} --report-log-exclude-logs-on-passed-tests -n {workers} --dist=loadfile --tb=short {repeat_option}",
+                command=f"{' '.join(parallel_test_modules)} --report-log-exclude-logs-on-passed-tests -n {workers} --dist=loadfile --tb=short {repeat_option}",
                 cwd="./tests/integration/",
                 env=test_env,
                 pytest_report_file=f"{temp_path}/pytest_parallel.jsonl",
