@@ -163,6 +163,9 @@ class CacheMetadata : private boost::noncopyable
 {
     friend struct KeyMetadata;
     class IteratorImpl;
+    class BatchedIteratorImpl;
+    using IteratorImplPtr = std::shared_ptr<IteratorImpl>;
+    using BatchedIteratorImplPtr = std::shared_ptr<BatchedIteratorImpl>;
 
 public:
     using Key = FileCacheKey;
@@ -284,8 +287,8 @@ private:
 class CacheMetadata::Iterator
 {
 public:
-    using ImplPtr = std::shared_ptr<CacheMetadata::IteratorImpl>;
-    explicit Iterator(ImplPtr impl_) : impl(std::move(impl_)) {}
+    using Impl = std::variant<CacheMetadata::IteratorImplPtr, CacheMetadata::BatchedIteratorImplPtr>;
+    explicit Iterator(const UserID & user_id_, MetadataBuckets & metadata_buckets_);
 
     using OnFileSegmentFunc = std::function<void(const FileSegmentInfo &)>;
     /// Execute func for one more file segment.
@@ -296,7 +299,9 @@ public:
     bool nextBatch(OnFileSegmentFunc func);
 
 protected:
-    ImplPtr impl;
+    const UserID user_id;
+    MetadataBuckets & metadata_buckets;
+    std::optional<Impl> impl;
 };
 
 /**
