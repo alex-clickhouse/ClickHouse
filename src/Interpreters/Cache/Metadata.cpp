@@ -423,14 +423,13 @@ public:
         for (; bucket_it != metadata_buckets.end(); ++bucket_it)
         {
             auto bucket_lock = bucket_it->lock();
-            for (auto key_it = bucket_it->begin(); key_it != bucket_it->end(); ++key_it)
+            for (const auto & [_, key_metadata] : *bucket_it)
             {
-                const auto & key = key_it->second;
-                auto key_lock = key->lock();
-                result |= key->size();
+                auto key_lock = key_metadata->lock();
+                result |= key_metadata->size();
 
-                for (auto file_segment_it = key->begin(); file_segment_it != key->end(); ++file_segment_it)
-                    func(FileSegment::getInfo(file_segment_it->second->file_segment));
+                for (const auto & [_, file_segment_metadata] : *key_metadata)
+                    func(FileSegment::getInfo(file_segment_metadata->file_segment));
             }
             if (result)
                 break;
