@@ -396,6 +396,38 @@ public:
         }
     }
 
+    bool nextBatch(Iterator::OnFileSegmentFunc func)
+    {
+        bool result = false;
+
+        /// Reset everything apart from bucket iterator.
+        SCOPE_EXIT({
+            bucket_lock.reset();
+            key_it.reset();
+            key_lock.reset();
+            file_segment_it.reset();
+        });
+
+        while (!result && bucket_it != metadata_buckets.end())
+        {
+            bucket_lock = bucket_it->lock();
+            for (key_it = bucket_it->begin(); key_it != bucket_it->end(); ++(key_it.value()))
+            {
+                const auto & key = key_it.value()->second;
+                key_lock = key->lock();
+                result |= key->size();
+
+                for (file_segment_it = key->begin(); file_segment_it.value() != key->end(); ++(file_segment_it.value()))
+                    func(FileSegment::getInfo(file_segment_it.value()->second->file_segment));
+
+                key_lock.reset();
+            }
+            bucket_lock.reset();
+            ++bucket_it;
+        }
+        return result;
+    }
+
 private:
     const UserID user_id;
     MetadataBuckets & metadata_buckets;
@@ -410,6 +442,11 @@ private:
 bool CacheMetadata::Iterator::next(OnFileSegmentFunc func)
 {
     return impl->next(func);
+}
+
+bool CacheMetadata::Iterator::nextBatch(OnFileSegmentFunc func)
+{
+    return impl->nextBatch(func);
 }
 
 CacheMetadata::IteratorPtr CacheMetadata::getIterator(const UserID & user_id)

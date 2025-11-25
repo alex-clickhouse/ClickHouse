@@ -288,7 +288,12 @@ public:
     explicit Iterator(ImplPtr impl_) : impl(std::move(impl_)) {}
 
     using OnFileSegmentFunc = std::function<void(const FileSegmentInfo &)>;
+    /// Execute func for one more file segment.
+    /// Cannot be used from different threads.
     bool next(OnFileSegmentFunc func);
+    /// Execute func for a batch of file segments.
+    /// Safe to be used from different threads.
+    bool nextBatch(OnFileSegmentFunc func);
 
 protected:
     ImplPtr impl;
