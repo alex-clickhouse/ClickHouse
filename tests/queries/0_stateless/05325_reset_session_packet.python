@@ -84,7 +84,15 @@ def test_dropped_handshake_database():
             print("session is unchanged after a failed reset:", setting(client, "max_block_size"))
 
 
-def test_reset_during_query():
+def print_connection_state(client):
+    try:
+        client.ping()
+        print("connection is open")
+    except (ConnectionClosed, OSError):
+        print("connection is closed")
+
+
+def test_reset_while_reading_query_data():
     # The packet is accepted only between queries.
     with NativeSessionClient() as client:
         client.send_query("SELECT 1", end_external_tables=False)
@@ -93,14 +101,20 @@ def test_reset_during_query():
 
         # The server reads the rest of the query data, then closes the connection.
         client.send_empty_block()
-        try:
-            client.ping()
-            print("connection is open")
-        except (ConnectionClosed, OSError):
-            print("connection is closed")
+        print_connection_state(client)
+
+
+def test_reset_while_query_runs():
+    # The server has read the query data and runs the query. It cancels the query.
+    with NativeSessionClient() as client:
+        client.send_query("SELECT toString(sleepEachRow(0.1)) FROM numbers(100) SETTINGS max_block_size = 1")
+        client.send_reset_session()
+        expect_error("UNEXPECTED_PACKET_FROM_CLIENT", client.receive_result)
+        print_connection_state(client)
 
 
 test_session_state()
 test_backup_in_memory()
 test_dropped_handshake_database()
-test_reset_during_query()
+test_reset_while_reading_query_data()
+test_reset_while_query_runs()

@@ -3256,6 +3256,10 @@ void TCPHandler::receivePacketsExpectCancel(QueryState & state, bool force)
                 case Protocol::Client::IgnoredPartUUIDs:
                     processObsoleteIgnoredPartUUIDs();
 
+                case Protocol::Client::ResetSession:
+                    /// The packet has no body, so the input is in sync, and the client gets the exception.
+                    throw Exception(ErrorCodes::UNEXPECTED_PACKET_FROM_CLIENT, "Unexpected packet ResetSession received from client during a query");
+
                 default:
                     throw NetException(ErrorCodes::UNKNOWN_PACKET_FROM_CLIENT, "Unknown packet from client {}", toString(packet_type));
             }

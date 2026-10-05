@@ -363,7 +363,7 @@ The reset fails, and the session does not change, in these cases:
 
 The server does not send its settings again. A client that applies the server settings from [`ServerHello`](#serverhello) (`SERVER_SETTINGS`) keeps the values that it received at login.
 
-`ResetSession` is valid only in `READY`. If the server receives it while it reads the data of a query, it sends an `Exception` (`UNEXPECTED_PACKET_FROM_CLIENT`) and terminates the connection.
+`ResetSession` is valid only in `READY`. If the server receives it during a query, while it reads the data of the query or while it runs the query, it cancels the query, sends an `Exception` (`UNEXPECTED_PACKET_FROM_CLIENT`) and terminates the connection.
 
 ### Query phase {#query-phase}
 
