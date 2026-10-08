@@ -624,10 +624,21 @@ void Session::resetSessionContext(const std::function<void(const ContextMutableP
 
     checkIfUserIsStillValid();
 
+    /// A reset is a new login of the authenticated user without its credentials. After `EXECUTE AS`
+    /// the session runs as another user, so a reset would give back the rights that `EXECUTE AS` dropped.
+    /// The settings are not checked: a new login of the same user also gets them from its profile.
+    if (session_context->getUserID() != user_id)
+    {
+        const auto & current_client_info = session_context->getClientInfo();
+        throw Exception(ErrorCodes::ACCESS_DENIED,
+            "Cannot reset the session while it runs as user {} after `EXECUTE AS`. "
+            "Only a session that runs as the authenticated user {} can be reset. Open a new connection",
+            current_client_info.current_user, current_client_info.authenticated_user);
+    }
+
     LOG_DEBUG(log, "{} Resetting session context, user_id: {}", toString(auth_id), toString(*user_id));
 
-    /// Keep the connection data. `EXECUTE AS` changes the current user, so set it back
-    /// to the authenticated user.
+    /// Keep the connection data, with the user name from authentication.
     ClientInfo client_info = session_context->getClientInfo();
     client_info.current_user = client_info.authenticated_user;
 

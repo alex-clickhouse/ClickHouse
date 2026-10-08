@@ -347,10 +347,10 @@ sequenceDiagram
    | `Exception` (2)       | Decode [`Exception`](#exception) and return as error. The session did not change. Return to `READY`, except for `USER_EXPIRED`, after which the server closes the connection. |
    | anything else         | Protocol violation. |
 
-The server makes the session again in the same way as at login, from the current access control data:
+A reset is a new login of the authenticated user, without its credentials. The server makes the session again in the same way as at login, from the current access control data:
 
-- The user is the authenticated user. An impersonation by `EXECUTE AS` ends.
-- The settings, settings profiles, constraints and current roles are those of the user, with the settings that an external authentication server returned at login.
+- The user is the authenticated user.
+- The settings, settings profiles, constraints and current roles are those of the user, with the settings that an external authentication server returned at login. This includes settings that the session cannot change back itself, such as `readonly` and `allow_ddl`.
 - The current database is the database from [`ClientHello`](#clienthello). If `ClientHello` had no database, it is the default database of the user.
 - Temporary tables, query parameters and in-memory backups (`BACKUP ... TO Memory`) are dropped.
 - The connection data (client name and version, address, quota key) does not change.
@@ -360,6 +360,9 @@ The reset fails, and the session does not change, in these cases:
 - The session is inside a transaction (`INVALID_TRANSACTION`). The client must send `COMMIT` or `ROLLBACK` first.
 - The database from `ClientHello` does not exist any more, or the constraints of the user do not allow it. A new connection with the same `ClientHello` fails in the same way.
 - The authentication method of the user has expired (`USER_EXPIRED`).
+- The session runs as another user after `EXECUTE AS` (`ACCESS_DENIED`). A reset would give back the rights that `EXECUTE AS` dropped, without the credentials of the authenticated user. The client must open a new connection. After `EXECUTE AS` back to the authenticated user, the session can be reset.
+
+A SQL statement cannot send `ResetSession`, so the SQL that runs in a session cannot undo `EXECUTE AS`, `readonly` or `allow_ddl` with it. Only the client that owns the connection can reset the session. A proxy that forwards the packets of a less trusted client on its own connection must not forward `ResetSession`.
 
 The server does not send its settings again. A client that applies the server settings from [`ServerHello`](#serverhello) (`SERVER_SETTINGS`) keeps the values that it received at login.
 

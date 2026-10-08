@@ -2,7 +2,7 @@
 
 # The `ResetSession` packet makes the session again from access control, as at login: it restores the
 # default roles of the user and applies changes that were made to the user and to its settings profile
-# during the session. It also ends the impersonation by `EXECUTE AS`.
+# during the session. A session that runs as another user after `EXECUTE AS` cannot be reset.
 
 import os
 import sys
@@ -46,6 +46,7 @@ def main():
         admin.query(f"GRANT {ROLE} TO {USER}")
         admin.query(f"SET DEFAULT ROLE {ROLE} TO {USER}")
         admin.query(f"GRANT IMPERSONATE ON {TARGET_USER} TO {USER}")
+        admin.query(f"GRANT IMPERSONATE ON {USER} TO {TARGET_USER}")
 
         # No database in the handshake: the session uses the default database of the user.
         with NativeSessionClient(user=USER, database="") as client:
@@ -65,12 +66,25 @@ def main():
             expect_error("SETTING_CONSTRAINT_VIOLATION", client.query, "SET max_threads = 8")
             print("new constraint applies")
 
+            # The settings come from the profile, as at a new login, also a setting that the session
+            # cannot change back itself.
+            client.query("SET readonly = 1")
+            expect_error("READONLY", client.query, "SET readonly = 0")
+            client.reset_session()
+            print("readonly from the profile:", client.value("SELECT toString(getSetting('readonly'))") == "0")
+
+            # A session that runs as another user cannot be reset. It does not change, and the
+            # connection stays open.
             client.query(f"EXECUTE AS {TARGET_USER}")
             print("impersonated:", client.value("SELECT currentUser()") == TARGET_USER)
+            expect_error("ACCESS_DENIED", client.reset_session)
+            print("reset refused:", client.value("SELECT currentUser()") == TARGET_USER)
 
+            # Back as the authenticated user, the session can be reset.
+            client.query(f"EXECUTE AS {USER}")
             client.reset_session()
-
-            print("impersonation ended:", client.query("SELECT currentUser(), authenticatedUser()")[0] == [USER, USER])
+            print("authenticated user:", client.query("SELECT currentUser(), authenticatedUser()")[0] == [USER, USER])
+            print("after reset as the authenticated user:", state(client) == [ROLE, "3333", OTHER_DATABASE])
 
         cleanup(admin)
 

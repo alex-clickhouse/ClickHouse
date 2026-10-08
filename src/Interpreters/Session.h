@@ -98,11 +98,12 @@ public:
 
     /// Replaces the session context with a new one, made the same way as at login: the authenticated
     /// user, the external roles, and the settings from the authentication server. Settings changed
-    /// during the session, the current roles and database, temporary tables, query parameters and
-    /// impersonation by `EXECUTE AS` are not kept. The client info of the connection is kept.
+    /// during the session, the current roles and database, temporary tables and query parameters
+    /// are not kept. The client info of the connection is kept.
     /// `prepare` is called for the new context before it replaces the current one. If an exception
     /// is thrown, the current context stays unchanged.
-    /// Throws `INVALID_TRANSACTION` if the session is inside a transaction.
+    /// Throws `INVALID_TRANSACTION` if the session is inside a transaction, and `ACCESS_DENIED`
+    /// if the session runs as another user after `EXECUTE AS`.
     void resetSessionContext(const std::function<void(const ContextMutablePtr &)> & prepare);
 
     ContextPtr  sessionOrGlobalContext() const { return session_context ? session_context : global_context; }
